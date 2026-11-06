@@ -1,0 +1,628 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta property="og:title" content="발주 현황 개발 매뉴얼 — 클로드 코드로 직접 고치기">
+<meta property="og:description" content="설치부터 클로드 코드로 프로그램을 고치고 올리는 순서까지. 교육 영상 포함.">
+<meta property="og:image" content="https://drc2104.github.io/drc-ai-starter/order-hub/og.jpg"><meta property="og:type" content="website">
+<title>발주 현황 개발 매뉴얼</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap">
+<style>
+/* 배치: 왼쪽 업무 묶음 240 | 위 진행 탭 + 지금 할 일 | 가운데 내용 + 오른쪽 진행 패널 340, 한 화면 */
+:root{
+  --bg:#eef0ed; --panel:#fafbf9; --ink:#1b211f; --muted:#4f5955; --line:#cdd3cf; --soft:#e2e6e2;
+  --accent:#b5651d; --accent-ink:#ffffff; --code:#1f2523; --code-ink:#f1efe8; --ok:#2f7d4f; --warn:#a4471b;
+  --font:"Pretendard","Pretendard Variable","Noto Sans KR","Malgun Gothic",sans-serif;
+  --mono:"Cascadia Mono",Consolas,"D2Coding",monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#171b1a; --panel:#1f2422; --ink:#e9ece9; --muted:#aab3ae; --line:#38403c; --soft:#2a302d;
+  --accent:#e08a43; --accent-ink:#1b1309; --code:#0f1211; --code-ink:#ece9df; --ok:#5fbf86; --warn:#f08a5a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#171b1a; --panel:#1f2422; --ink:#e9ece9; --muted:#aab3ae; --line:#38403c; --soft:#2a302d;
+  --accent:#e08a43; --accent-ink:#1b1309; --code:#0f1211; --code-ink:#ece9df; --ok:#5fbf86; --warn:#f08a5a; color-scheme:dark}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.6;
+  padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
+.app{height:100%;display:grid;grid-template-columns:240px minmax(0,1fr);overflow:hidden}
+.side{border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
+.brand{padding:18px 18px 14px;border-bottom:1px solid var(--line)}
+.brand b{display:block;font-size:17px;font-weight:800;letter-spacing:-.01em}
+.brand span{font-size:13px;color:var(--muted)}
+.cats{list-style:none;margin:0;padding:8px 0;overflow:auto;flex:1}
+.cats button{all:unset;box-sizing:border-box;width:100%;display:flex;justify-content:space-between;align-items:center;
+  padding:11px 18px;font-size:16px;cursor:pointer;border-left:4px solid transparent}
+.cats button:hover{background:var(--soft)}
+.cats button[aria-current="true"]{border-left-color:var(--accent);background:var(--soft);font-weight:700}
+.cats button:focus-visible,.tabs button:focus-visible,.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.cats small{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.sidefoot{padding:12px 18px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.main{display:grid;grid-template-rows:auto auto minmax(0,1fr);min-height:0;min-width:0}
+.tabs{display:flex;align-items:stretch;border-bottom:1px solid var(--line);background:var(--panel);overflow-x:auto}
+.tabs button{all:unset;cursor:pointer;padding:14px 18px;font-size:16px;white-space:nowrap;border-bottom:3px solid transparent;color:var(--muted)}
+.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--accent)}
+.tabs .where{margin-left:auto;padding:14px 18px;font-size:13px;color:var(--muted);white-space:nowrap}
+.now{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:10px 24px;border-bottom:1px solid var(--line)}
+.now p{margin:0}.now b{color:var(--accent)}
+.btn{all:unset;cursor:pointer;padding:8px 16px;border:1px solid var(--line);border-radius:4px;font-size:15px;white-space:nowrap;background:var(--panel)}
+.btn.main{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+.body{display:grid;grid-template-columns:minmax(0,1fr) 340px;min-height:0}
+.content{overflow:auto;padding:22px 28px 28px;min-width:0}
+.right{border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:20px}
+h2{font-size:20px;margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
+h3{font-size:16px;margin:22px 0 8px}
+.lead{color:var(--muted);margin:0 0 16px;max-width:70ch}
+table{border-collapse:collapse;width:100%;font-size:15px;margin:6px 0 12px}
+th,td{border-bottom:1px solid var(--line);padding:9px 10px;text-align:left;vertical-align:top}
+th{font-size:14px;color:var(--muted);font-weight:600;background:var(--soft)}
+td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
+.tw{overflow-x:auto}
+pre.cmd{position:relative;margin:8px 0 14px;background:var(--code);color:var(--code-ink);font-family:var(--mono);font-size:14px;
+  padding:14px 92px 14px 16px;border-radius:4px;white-space:pre-wrap;word-break:break-all}
+pre.cmd button{position:absolute;top:8px;right:8px;all:unset;position:absolute;top:8px;right:8px;cursor:pointer;font-family:var(--font);
+  font-size:13px;padding:4px 10px;border:1px solid #5a625e;border-radius:3px;color:var(--code-ink)}
+code{font-family:var(--mono);font-size:14px;background:var(--soft);padding:1px 5px;border-radius:3px}
+a{color:var(--accent);font-weight:600}
+ol.steps{margin:6px 0 12px;padding-left:22px}ol.steps li{margin:6px 0}
+.check{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:4px;margin:10px 0;background:var(--panel)}
+.check input{width:18px;height:18px;margin-top:3px;accent-color:var(--accent)}
+.note{border-left:4px solid var(--warn);padding:8px 12px;background:var(--soft);margin:12px 0}
+.flow{display:flex;flex-wrap:wrap;gap:0;margin:10px 0 16px}
+.flow div{flex:1 1 120px;padding:12px 14px;border:1px solid var(--line);margin:-1px 0 0 -1px;background:var(--panel)}
+.flow b{display:block;font-size:16px}.flow small{font-size:14px;color:var(--muted)}
+.flow i{font-style:normal;font-size:13px;color:var(--accent);font-weight:700}
+.right h4{font-size:16px;margin:0 0 10px}
+.bar{height:10px;background:var(--soft);border-radius:2px;overflow:hidden;margin:6px 0 4px}
+.bar span{display:block;height:100%;background:var(--accent);width:0}
+.rt{font-size:14px;color:var(--muted)}
+.rsec{padding:14px 0;border-top:1px solid var(--line)}.rsec:first-child{border-top:0;padding-top:0}
+.catbars div{display:grid;grid-template-columns:96px 1fr 44px;gap:8px;align-items:center;font-size:14px;margin:5px 0}
+.catbars em{font-style:normal;font-variant-numeric:tabular-nums;text-align:right;color:var(--muted)}
+.mini{height:6px;background:var(--soft)}.mini span{display:block;height:100%;background:var(--accent)}
+@media (max-width:1100px){.body{grid-template-columns:minmax(0,1fr)}.right{border-left:0;border-top:1px solid var(--line)}}
+@media (max-width:900px){
+  html,body{height:auto}.app{display:block;height:auto;overflow:visible}
+  .side{border-right:0;border-bottom:1px solid var(--line)}
+  .cats{display:flex;overflow-x:auto;padding:0}.cats li{flex:0 0 auto}.cats button{border-left:0;border-bottom:3px solid transparent;padding:10px 14px}
+  .cats button[aria-current="true"]{border-bottom-color:var(--accent)}.sidefoot{display:none}
+  .now{flex-wrap:wrap;padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px))}
+  .content,.right{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow:visible}
+  .body{display:block}.brand{padding-inline:max(16px,env(safe-area-inset-left,0px)) 16px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.main{grid-template-columns:minmax(0,1fr)}
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0 14px}
+.vs>div{border:1px solid var(--line);padding:12px 14px;background:var(--panel);min-width:0}
+.vs .bad{border-top:4px solid var(--warn)}.vs .good{border-top:4px solid var(--ok)}
+.vs b.t{display:block;font-size:14px;color:var(--muted);margin-bottom:6px}
+.lv{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:10px 0 14px;align-items:end}
+.lv div{border:1px solid var(--line);background:var(--panel);padding:12px}
+.lv div:nth-child(1){min-height:150px}.lv div:nth-child(2){min-height:180px}.lv div:nth-child(3){min-height:210px}.lv div:nth-child(4){min-height:240px;border-color:var(--accent)}
+.lv i{font-style:normal;font-size:13px;color:var(--accent);font-weight:700}.lv b{display:block;font-size:20px}.lv small{display:block;font-size:14px;color:var(--muted);margin-top:4px}
+.seek{all:unset;cursor:pointer;color:var(--accent);font-weight:700;text-decoration:underline}
+.tag{display:inline-block;font-size:13px;padding:1px 7px;border:1px solid var(--line);border-radius:3px;color:var(--muted);margin-left:6px;vertical-align:1px}
+@media (max-width:700px){.vs,.lv{grid-template-columns:1fr}.lv div{min-height:0!important}}
+
+
+figure.shot{margin:12px 0 16px;max-width:980px}
+figure.shot img{width:100%;display:block;border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 22px rgba(0,0,0,.08);cursor:zoom-in;background:#fff}
+figure.shot.phone{max-width:300px}
+figure.shot figcaption{font-size:14px;color:var(--muted);margin-top:6px}
+.term{max-width:860px;margin:10px 0 14px;border-radius:10px;overflow:hidden;border:1px solid #2b302e;background:#0f1211}
+.term .tb{background:#1f2523;color:#b8c0bb;font-size:13px;padding:7px 12px}
+.term pre{margin:0;padding:14px 16px;color:#e8e6df;font-family:var(--mono);font-size:14px;line-height:1.55;white-space:pre-wrap}
+.term pre b{color:#e08a43}
+.flow i{display:block}
+.zoomv{position:fixed;inset:0;background:rgba(10,14,13,.86);display:none;z-index:50;overflow:auto;padding:24px;cursor:zoom-out}
+.zoomv.on{display:block}.zoomv img{display:block;max-width:none;width:min(1800px,100%);margin:0 auto;border-radius:8px}
+</style>
+<div class="app">
+  <nav class="side" aria-label="업무 묶음">
+    <div class="brand"><b>발주 현황 개발 매뉴얼</b><span>클로드 코드로 직접 고치기 · 2026-11-06 작성</span></div>
+    <ul class="cats" id="cats"></ul>
+    <div class="sidefoot">진행 체크는 이 브라우저에만 저장됩니다.<br>짝 매뉴얼: <a href="https://drc2104.github.io/drc-ai-starter/" target="_blank" rel="noopener">클로드 자동화 개발(설치)</a> · <a href="https://drc2104.github.io/drc-ai-starter/vibe/" target="_blank" rel="noopener">바이브 코딩 잘하는 법</a></div>
+  </nav>
+  <main class="main">
+    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="now"><p id="nowText"></p><button class="btn main" id="nextBtn" type="button">다음</button></div>
+    <div class="body">
+      <div class="content" id="content">
+<!-- ───────── 1. 시작하기 ───────── -->
+<section class="pane" data-cat="start" data-tab="교육 영상" data-now="교육 영상을 먼저 끝까지 보고, [다음]을 눌러 매뉴얼을 따라 합니다.">
+  <h2>교육 영상 · 클로드 코드로 발주 현황 고치기</h2>
+  <video id="vid" controls playsinline preload="metadata" poster="og.jpg" src="order-hub.mp4" style="width:100%;max-width:960px;aspect-ratio:16/9;background:#000;display:block;margin:6px 0 8px"></video>
+  <p class="rt">영상이 안 나오면 <a href="order-hub.mp4" target="_blank" rel="noopener">영상만 따로 열기</a> · 아래 시각을 누르면 그 장으로 갑니다.</p>
+  <div class="tw"><table id="chapTable">
+    <tr><th>시각</th><th>장</th><th>매뉴얼 묶음</th></tr>
+    <tr><td class="n"><button type="button" class="seek" data-t="0">0:00</button></td><td>1. 시작하기</td><td>시작하기</td></tr>
+<tr><td class="n"><button type="button" class="seek" data-t="36">0:36</button></td><td>2. 설치 · 계정 연결</td><td>설치 · 계정 연결</td></tr>
+<tr><td class="n"><button type="button" class="seek" data-t="88">1:28</button></td><td>3. 프로그램 받기</td><td>프로그램 받기</td></tr>
+<tr><td class="n"><button type="button" class="seek" data-t="153">2:33</button></td><td>4. 클로드 코드 쓰는 법</td><td>클로드 코드 쓰는 법</td></tr>
+<tr><td class="n"><button type="button" class="seek" data-t="206">3:26</button></td><td>5. 고치는 순서 (실습)</td><td>고치는 순서(실습)</td></tr>
+<tr><td class="n"><button type="button" class="seek" data-t="260">4:20</button></td><td>6. 지켜야 할 것</td><td>지켜야 할 것</td></tr>
+<tr><td class="n"><button type="button" class="seek" data-t="292">4:52</button></td><td>7. 막혔을 때 · 정리</td><td>막혔을 때</td></tr>
+
+  </table></div>
+  <label class="check"><input type="checkbox" data-step="s0"><span>교육 영상을 끝까지 봤다</span></label>
+</section>
+
+<section class="pane" data-cat="start" data-tab="무엇을 배우나" data-now="이 매뉴얼을 끝내면 할 수 있는 일을 먼저 확인합니다.">
+  <h2>이 매뉴얼을 끝내면, 내가 직접 발주 현황을 고칠 수 있습니다</h2>
+  <p class="lead">발주 현황은 카톡·네이버 메일로 들어온 발주가 이카운트에 들어갔는지, 출고·미출고와 회계 반영까지 한 화면에서 보여 주는 회사 프로그램입니다. 매일 쓰는 사람이 불편한 점을 가장 잘 압니다. 그래서 고치는 일도 쓰는 사람이 직접 합니다. 코드는 몰라도 됩니다. <b>클로드 코드에게 말로 시킵니다.</b></p>
+  <figure class="shot"><img src="img/s02_orders.jpg" alt="발주 현황 화면 — 발주 접수"><figcaption>발주 현황 화면(교육용 예시 자료). 왼쪽 업무 → 위 탭 → 표 순서로 봅니다.</figcaption></figure>
+  <div class="flow">
+    <div><i>1</i><b>설치</b><small>명령 한 줄로 필요한 프로그램 전부</small></div>
+    <div><i>2</i><b>계정 연결</b><small>클로드 · 깃허브 로그인</small></div>
+    <div><i>3</i><b>받기</b><small>프로그램을 내 PC로</small></div>
+    <div><i>4</i><b>말로 고치기</b><small>클로드 코드에게 시킨다</small></div>
+    <div><i>5</i><b>올리기 · 반영</b><small>깃허브 → 사무실 PC</small></div>
+  </div>
+  <label class="check"><input type="checkbox" data-step="s1"><span>5단계 흐름을 확인했다</span></label>
+</section>
+
+<section class="pane" data-cat="start" data-tab="누가 어디서" data-now="내 PC · 깃허브 · 대표 승인 · 사무실 PC가 어떻게 이어지는지 봅니다.">
+  <h2>네 곳이 깃허브로 이어집니다</h2>
+  <div class="tw"><table>
+    <tr><th>어디</th><th>누가</th><th>하는 일</th></tr>
+    <tr><td><b>내 PC</b></td><td>이성빈 주임</td><td>클로드 코드로 고치고, 가짜 자료로 화면을 확인하고, 깃허브에 올립니다.</td></tr>
+    <tr><td><b>깃허브</b> (인터넷 금고)</td><td>—</td><td>프로그램 원본 보관. 누가 언제 무엇을 바꿨는지 모두 남습니다. 비공개 저장소 <code>drc2104/order-hub</code>.</td></tr>
+    <tr><td><b>대표 승인</b></td><td>대표</td><td>올라온 변경 요청(Pull request)을 보고 승인합니다.</td></tr>
+    <tr><td><b>사무실 PC</b></td><td>—</td><td>실제로 프로그램이 도는 곳. 하루 3번(07·11·15시) 자동 실행. 승인된 판을 <code>업데이트_받기.bat</code>로 받습니다.</td></tr>
+  </table></div>
+  <div class="note"><b>회사 자료는 깃허브에 올라가지 않습니다.</b> 이카운트 키, 메일 비밀번호, 발주 DB, 카톡 대화, 판매 자료는 사무실 PC에만 있습니다. 내 PC에서는 <b>가짜 자료</b>로 화면을 고칩니다.</div>
+  <label class="check"><input type="checkbox" data-step="s2"><span>내 PC · 깃허브 · 사무실 PC의 역할을 이해했다</span></label>
+</section>
+
+<!-- ───────── 2. 설치 ───────── -->
+<section class="pane" data-cat="install" data-tab="한 줄 설치" data-now="회사 AI 키트를 명령 한 줄로 설치합니다(10~20분).">
+  <h2>회사 AI 키트 — 명령 한 줄로 전부 설치</h2>
+  <p class="lead">클로드 코드, Git, Python, VS Code, 크롬 등 개발에 필요한 프로그램을 한 번에 설치합니다. 이미 설치된 것은 건너뜁니다.</p>
+  <ol class="steps">
+    <li><b>윈도우 키</b>를 누르고 <code>PowerShell</code>을 입력 → <b>Windows PowerShell</b>을 엽니다(관리자로 열 필요 없음).</li>
+    <li>아래 명령을 <b>복사</b> 버튼으로 복사 → PowerShell 창에 마우스 오른쪽 클릭(붙여넣기) → <b>Enter</b>.</li>
+  </ol>
+  <pre class="cmd">irm https://raw.githubusercontent.com/drc2104/drc-ai-starter/main/install.ps1 | iex</pre>
+  <ol class="steps" start="3">
+    <li>설치가 끝날 때까지 창을 닫지 않습니다. 중간에 "설치하시겠습니까?" 창이 뜨면 <b>예</b>.</li>
+    <li>끝나면 PowerShell 창을 <b>닫고 새로</b> 엽니다(새 프로그램을 인식시키기 위해).</li>
+  </ol>
+  <figure class="shot"><img src="img/w01_kit.jpg" alt="회사 AI 키트 깃허브 페이지"><figcaption>회사 AI 키트 저장소 — 설치되는 프로그램 목록과 설치 방법이 적혀 있습니다.</figcaption></figure>
+  <label class="check"><input type="checkbox" data-step="i1"><span>한 줄 설치를 끝까지 실행했다</span></label>
+</section>
+
+<section class="pane" data-cat="install" data-tab="설치 확인" data-now="새 PowerShell 창에서 프로그램이 다 깔렸는지 확인합니다.">
+  <h2>설치 확인 — 버전 숫자가 나오면 성공</h2>
+  <p class="lead">새 PowerShell 창에서 한 줄씩 넣어 봅니다. 숫자(버전)가 나오면 설치된 것입니다.</p>
+  <pre class="cmd">git --version
+python --version
+claude --version
+gh --version</pre>
+  <div class="tw"><table>
+    <tr><th>프로그램</th><th>하는 일</th><th>안 나오면</th></tr>
+    <tr><td><b>Claude Code</b> (<code>claude</code>)</td><td>말로 시키면 코드를 읽고·고치고·실행하는 클로드</td><td><code>irm https://claude.ai/install.ps1 | iex</code></td></tr>
+    <tr><td><b>Git</b></td><td>저장점(되돌리기), 깃허브와 주고받기</td><td><code>winget install --id Git.Git -e</code></td></tr>
+    <tr><td><b>Python</b></td><td>발주 현황 프로그램이 쓰는 언어</td><td><code>winget install --id Python.Python.3.14 -e</code></td></tr>
+    <tr><td><b>GitHub CLI</b> (<code>gh</code>)</td><td>깃허브 로그인·변경 요청(PR)</td><td>키트를 한 번 더 실행</td></tr>
+  </table></div>
+  <div class="note">설치 직후 "명령을 찾을 수 없습니다"가 나오면 대부분 <b>창을 새로 열지 않아서</b>입니다. PowerShell을 모두 닫고 다시 엽니다. 그래도 안 되면 PC를 다시 시작합니다.</div>
+  <label class="check"><input type="checkbox" data-step="i2"><span>네 가지 모두 버전이 나왔다</span></label>
+</section>
+
+<!-- ───────── 3. 계정 연결 ───────── -->
+<section class="pane" data-cat="account" data-tab="클로드 로그인" data-now="클로드 코드를 처음 켜고 회사 클로드 계정으로 로그인합니다.">
+  <h2>클로드 코드 첫 실행 — 브라우저로 로그인</h2>
+  <ol class="steps">
+    <li>PowerShell에서 <code>claude</code>를 입력하고 Enter.</li>
+    <li>글자 색(테마)을 고르는 화면이 나오면 Enter로 넘깁니다.</li>
+    <li>로그인 방법은 <b>Claude 계정(구독)</b>을 고릅니다 → 브라우저가 열리면 <b>대표님이 알려 준 회사 클로드 계정</b>으로 로그인 → [승인].</li>
+    <li>PowerShell로 돌아오면 클로드 코드 화면(<code>&gt;</code> 입력칸)이 나옵니다. <code>/exit</code>로 나갑니다.</li>
+  </ol>
+  <pre class="cmd">claude</pre>
+  <figure class="shot"><img src="img/w03_claude_docs.jpg" alt="Claude Code 공식 시작 안내"><figcaption>공식 안내(영문): 시작 전 준비물 — 터미널, 작업할 폴더, Claude 구독(Pro·Max·Team 등) 계정.</figcaption></figure>
+  <div class="note">계정·요금제는 대표님이 정합니다. 비밀번호는 채팅·카톡에 쓰지 않습니다.</div>
+  <label class="check"><input type="checkbox" data-step="a1"><span>클로드 코드에 로그인했다</span></label>
+</section>
+
+<section class="pane" data-cat="account" data-tab="깃허브 가입 · 초대" data-now="깃허브 아이디를 만들고, 대표님 초대를 수락합니다.">
+  <h2>깃허브 아이디 만들기 → 저장소 초대 수락</h2>
+  <ol class="steps">
+    <li><a href="https://github.com/signup" target="_blank" rel="noopener">github.com/signup</a>에서 회사 메일로 가입합니다(무료). 메일 → 비밀번호 → 아이디 순서로 넣고, 메일로 온 숫자 코드를 입력합니다.</li>
+    <li>만든 <b>아이디</b>를 대표님께 카톡으로 보냅니다 → 대표님이 <code>drc2104/order-hub</code>에 초대합니다.</li>
+    <li>메일함에 온 초대 메일 → <b>View invitation</b> → <b>Accept invitation</b>.</li>
+  </ol>
+  <label class="check"><input type="checkbox" data-step="a2"><span>깃허브 가입 · 초대 수락을 끝냈다</span></label>
+</section>
+
+<section class="pane" data-cat="account" data-tab="깃허브 로그인" data-now="내 PC를 깃허브에 연결합니다(처음 한 번).">
+  <h2>내 PC를 깃허브에 연결 — 처음 한 번</h2>
+  <pre class="cmd">gh auth login</pre>
+  <ol class="steps">
+    <li>질문이 나오면 차례로: <b>GitHub.com</b> → <b>HTTPS</b> → Git 자격 증명 사용 <b>Yes</b> → <b>Login with a web browser</b>.</li>
+    <li>화면에 나온 <b>8자리 코드</b>를 기억 → Enter → 브라우저에서 코드 입력 → [Authorize].</li>
+    <li>확인: 아래 명령에서 <b>Logged in to github.com</b>이 나오면 성공.</li>
+  </ol>
+  <pre class="cmd">gh auth status</pre>
+  <ol class="steps" start="4"><li><b>이름 · 메일 등록</b>(처음 한 번) — 깃허브에 올릴 때 누가 바꿨는지 남는 이름입니다. 따옴표 안을 내 것으로 바꿉니다.</li></ol>
+  <pre class="cmd">git config --global user.name "이성빈"
+git config --global user.email "가입한-메일@회사메일.com"</pre>
+  <label class="check"><input type="checkbox" data-step="a3"><span>gh auth status 에서 로그인이 확인됐다</span></label>
+</section>
+
+<!-- ───────── 4. 프로그램 받기 ───────── -->
+<section class="pane" data-cat="get" data-tab="내 PC로 받기" data-now="발주 현황 프로그램을 내 PC로 받습니다.">
+  <h2>프로그램 받기 (clone) — 처음 한 번</h2>
+  <p class="lead">문서 폴더 아래에 <code>order-hub</code> 폴더가 생깁니다. 앞으로 이 폴더에서 일합니다.</p>
+  <pre class="cmd">cd $HOME\Documents
+git clone https://github.com/drc2104/order-hub.git
+cd order-hub</pre>
+  <div class="note">처음엔 로그인 창이 한 번 뜰 수 있습니다 → [Sign in with your browser]. 초대를 수락하지 않았으면 "Repository not found"가 나옵니다.</div>
+  <label class="check"><input type="checkbox" data-step="g1"><span>order-hub 폴더를 받았다</span></label>
+</section>
+
+<section class="pane" data-cat="get" data-tab="가짜 자료로 화면 띄우기" data-now="회사 자료 없이, 가짜 자료로 화면을 띄워 봅니다.">
+  <h2>가짜 자료로 화면 띄우기 — 고칠 때마다 이걸로 확인</h2>
+  <p class="lead">실제 발주·거래처 자료는 사무실 PC에만 있습니다. 내 PC에서는 가짜 자료를 만들어 화면을 확인합니다.</p>
+  <pre class="cmd">python -X utf8 tools/sample_db.py
+$env:ORDER_DB="data\sample.db"; $env:ORDER_DEMO="1"
+python -X utf8 report.py 개발화면.html
+start 개발화면.html</pre>
+  <figure class="shot"><img src="img/s01_today.jpg" alt="가짜 자료로 띄운 오늘 할 일 화면"><figcaption>가짜 자료 화면. 거래처 이름(가나메디칼·다라의료기·마바헬스케어)과 숫자는 모두 예시입니다.</figcaption></figure>
+  <label class="check"><input type="checkbox" data-step="g2"><span>개발화면.html 이 브라우저에 열렸다</span></label>
+</section>
+
+<section class="pane" data-cat="get" data-tab="폴더 지도" data-now="어떤 파일이 무엇을 하는지 한 번 훑어봅니다(외울 필요 없음).">
+  <h2>폴더 지도 — 외울 필요는 없습니다</h2>
+  <p class="lead">클로드 코드가 알아서 찾아 고칩니다. "화면은 report.py" 정도만 알아 두면 충분합니다.</p>
+  <div class="tw"><table>
+    <tr><th>파일</th><th>하는 일</th></tr>
+    <tr><td><code>report.py</code></td><td><b>화면 전체</b>(왼쪽 업무·탭·표·색). 화면을 고치면 대부분 여기</td></tr>
+    <tr><td><code>run_daily.py</code></td><td>하루 3번 자동 실행 순서(카톡 → 메일 → 이카운트 → 대조 → 화면)</td></tr>
+    <tr><td><code>mail_reader.py</code></td><td>네이버 메일 이카운트 발주서 읽기, 발주서 원본 그림</td></tr>
+    <tr><td><code>match.py</code> · <code>ec_orders.py</code></td><td>발주 ↔ 이카운트 판매 전표·주문서 대조</td></tr>
+    <tr><td><code>shipments.py</code></td><td>품목별 발주·출고·미출고 계산, [출고 등록]</td></tr>
+    <tr><td><code>server.py</code></td><td>사무실 PC 화면의 버튼 동작</td></tr>
+    <tr><td><code>rules.json</code></td><td>거래처·품목 별칭 규칙(예: 카톡에 "가나" → 이카운트 "(주)가나메디칼")</td></tr>
+    <tr><td><code>CLAUDE.md</code></td><td><b>클로드 코드가 지키는 규칙</b>(화면 기준·금지 사항). 클로드가 스스로 읽습니다</td></tr>
+    <tr><td><code>README.md</code></td><td>프로그램 설명서</td></tr>
+  </table></div>
+  <label class="check"><input type="checkbox" data-step="g3"><span>report.py = 화면, CLAUDE.md = 클로드 규칙 을 기억했다</span></label>
+</section>
+
+<!-- ───────── 5. 클로드 코드 쓰는 법 ───────── -->
+<section class="pane" data-cat="claude" data-tab="켜기 · 화면" data-now="order-hub 폴더에서 클로드 코드를 켜고 화면을 익힙니다.">
+  <h2>클로드 코드 켜기 — 반드시 order-hub 폴더에서</h2>
+  <pre class="cmd">cd $HOME\Documents\order-hub
+claude</pre>
+  <div class="term"><div class="tb">PowerShell — order-hub</div><pre>╭──────────────────────────────────────╮
+│ ✻ Welcome to Claude Code!            │
+│   cwd: C:\Users\…\Documents\order-hub │
+╰──────────────────────────────────────╯
+
+<b>&gt;</b> 이 프로그램이 뭐 하는 건지 쉽게 설명해 줘
+</pre></div>
+  <ol class="steps">
+    <li>처음 켜면 <b>"Do you trust the files in this folder?"</b>(이 폴더를 믿겠습니까?)를 묻습니다 → <b>1. Yes, proceed</b>.</li>
+    <li><b>&gt;</b> 옆 입력칸에 한국어로 말하듯 적고 Enter.</li>
+    <li>클로드가 파일을 읽고 답합니다. 파일을 고치거나 명령을 실행하기 전에는 <b>허락을 묻습니다</b>(다음 탭).</li>
+    <li>끝낼 때는 <code>/exit</code> 또는 <b>Ctrl+C 두 번</b>.</li>
+  </ol>
+  <div class="note">다른 폴더에서 켜면 클로드가 이 프로그램을 못 찾습니다. 화면 위 <code>cwd:</code>가 <code>order-hub</code>인지 확인합니다.</div>
+  <label class="check"><input type="checkbox" data-step="c1"><span>클로드 코드를 켜고 첫 질문을 해 봤다</span></label>
+</section>
+
+<section class="pane" data-cat="claude" data-tab="허락 질문에 답하기" data-now="클로드가 묻는 '허락' 질문에 어떻게 답하는지 배웁니다.">
+  <h2>허락 질문 — 읽고, 맞으면 1번</h2>
+  <div class="term"><div class="tb">클로드가 파일을 고치기 전에 묻는 화면(예)</div><pre>Edit file report.py
+
+  미출고만 모아 보는 탭을 추가합니다 …
+
+Do you want to make this edit to report.py?
+<b>❯ 1. Yes</b>
+  2. Yes, allow all edits during this session
+  3. No, and tell Claude what to do differently (esc)</pre></div>
+  <div class="tw"><table>
+    <tr><th>번호</th><th>뜻</th><th>언제</th></tr>
+    <tr><td class="n">1</td><td>이번 한 번 허락</td><td>처음엔 항상 이것. 무엇을 바꾸는지 읽고 누릅니다</td></tr>
+    <tr><td class="n">2</td><td>이번 대화 동안 같은 종류는 묻지 않음</td><td>익숙해진 뒤, 화면 고치기처럼 안전한 일</td></tr>
+    <tr><td class="n">3 / Esc</td><td>거절하고 다르게 하라고 말하기</td><td>엉뚱한 파일을 고치려 하거나, 이카운트에 실제로 저장하려 할 때</td></tr>
+  </table></div>
+  <div class="note"><b>꼭 3번(거절)</b>: 이카운트 판매입력·거래처 등록을 실제로 실행하려 할 때, <code>.env</code>를 열어 보려 할 때, 파일을 지우려 할 때.</div>
+  <label class="check"><input type="checkbox" data-step="c2"><span>1·2·3번의 뜻을 알았다</span></label>
+</section>
+
+<section class="pane" data-cat="claude" data-tab="잘 시키는 말" data-now="클로드가 한 번에 알아듣게 시키는 4칸 공식을 익힙니다.">
+  <h2>잘 시키는 말 — 4칸 공식</h2>
+  <div class="vs">
+    <div class="bad"><b class="t">나쁜 예</b>화면 좀 보기 좋게 해 줘</div>
+    <div class="good"><b class="t">좋은 예</b><b>[목적]</b> 출고 안 된 것만 빨리 보고 싶다<br><b>[재료]</b> 발주 접수 화면, 미출고 수량<br><b>[결과물]</b> 발주 접수에 '미출고 남음' 탭 추가, 미출고 많은 순<br><b>[확인]</b> 가짜 자료 화면으로 1366·휴대폰 폭 확인<br>바로 고치지 말고 계획부터 보여 줘.</div>
+  </div>
+  <pre class="cmd">[목적]
+[재료]
+[결과물]
+[확인]
+바로 고치지 말고 계획부터 보여 줘.</pre>
+  <div class="tw"><table>
+    <tr><th>상황</th><th>이렇게 말하기</th></tr>
+    <tr><td>화면 캡처가 있을 때</td><td>캡처를 입력칸에 <b>끌어다 놓고</b> "이 부분 글씨가 잘린다, 고쳐 줘"</td></tr>
+    <tr><td>결과가 이상할 때</td><td>"방금 바꾼 것 되돌려 줘" — 클로드가 이전 상태로 돌립니다</td></tr>
+    <tr><td>무엇을 바꿨는지 모를 때</td><td>"지금까지 바꾼 것을 쉬운 말로 정리해 줘"</td></tr>
+    <tr><td>오래 대화해서 느려질 때</td><td><code>/clear</code> 로 새 대화(규칙 CLAUDE.md 는 다시 읽음)</td></tr>
+  </table></div>
+  <label class="check"><input type="checkbox" data-step="c3"><span>4칸 공식을 복사해 두었다</span></label>
+</section>
+
+<section class="pane" data-cat="claude" data-tab="자주 쓰는 키" data-now="클로드 코드에서 자주 쓰는 명령과 키를 확인합니다.">
+  <h2>자주 쓰는 명령 · 키</h2>
+  <div class="tw"><table>
+    <tr><th>입력</th><th>하는 일</th></tr>
+    <tr><td><code>Esc</code></td><td>클로드가 하던 일을 <b>바로 멈춤</b>(방향이 틀렸을 때)</td></tr>
+    <tr><td><code>Shift+Tab</code></td><td>모드 바꾸기. <b>한 번</b> = 수정 자동 허락(허락 질문이 안 나옴 — 처음엔 쓰지 않기), <b>두 번</b> = <b>계획 모드</b>(고치지 않고 계획만), <b>세 번</b> = 원래대로. 화면 아래 표시로 지금 모드를 확인</td></tr>
+    <tr><td><code>/clear</code></td><td>대화를 비우고 새로 시작</td></tr>
+    <tr><td><code>/help</code></td><td>명령 목록 보기</td></tr>
+    <tr><td><code>@report.py</code></td><td>파일을 콕 집어 말하기 — "@report.py 의 탭 색을 바꿔 줘"</td></tr>
+    <tr><td><code>!git status</code></td><td>앞에 <code>!</code>를 붙이면 명령을 직접 실행</td></tr>
+    <tr><td><code>/exit</code></td><td>클로드 코드 끝내기</td></tr>
+  </table></div>
+  <label class="check"><input type="checkbox" data-step="c4"><span>Esc(멈춤)와 Shift+Tab 두 번(계획 모드)을 써 봤다</span></label>
+</section>
+
+<!-- ───────── 6. 고치는 순서(실습) ───────── -->
+<section class="pane" data-cat="fix" data-tab="① 최신판 받기" data-now="고치기 전에 항상 깃허브 최신판을 받습니다.">
+  <h2>① 고치기 전에 — 최신판 받기</h2>
+  <p class="lead">다른 사람이 먼저 고친 것과 겹치지 않게, 시작할 때마다 받습니다.</p>
+  <pre class="cmd">cd $HOME\Documents\order-hub
+git checkout main
+git pull</pre>
+  <p class="rt">클로드에게 "최신판 받아 줘"라고 해도 됩니다.</p>
+  <label class="check"><input type="checkbox" data-step="f1"><span>git pull 을 했다</span></label>
+</section>
+
+<section class="pane" data-cat="fix" data-tab="② 말로 시키기" data-now="실습: '미출고 남음' 탭을 클로드에게 시켜 봅니다.">
+  <h2>② 실습 — "미출고 남음" 탭 만들기</h2>
+  <ol class="steps">
+    <li><code>claude</code>를 켭니다.</li>
+    <li>아래 지시문을 그대로 붙여 넣습니다.</li>
+  </ol>
+  <pre class="cmd">[목적] 출고가 덜 된 발주만 빨리 보고 싶다
+[재료] 발주 접수 화면, 품목별 미출고 수량
+[결과물] 발주 접수 업무에 '미출고 남음' 탭 추가 — 미출고가 1개라도 있는 발주만, 미출고 많은 순
+[확인] 가짜 자료로 화면을 만들어 1920·1366·휴대폰 폭에서 확인하고, 결과를 표로 보여 줘
+바로 고치지 말고 계획부터 보여 줘.</pre>
+  <ol class="steps" start="3">
+    <li>클로드가 <b>계획</b>을 보여 줍니다 → 맞으면 "좋아, 진행해".</li>
+    <li>파일을 고칠 때 허락을 묻습니다 → 내용을 읽고 <b>1</b>.</li>
+    <li>클로드가 CLAUDE.md 규칙대로 화면을 만들어 확인하고 보고합니다.</li>
+  </ol>
+  <figure class="shot"><img src="img/s06_ship.jpg" alt="품목별 발주·출고·미출고와 출고 등록"><figcaption>미출고는 빨간 숫자. 발주 상세에서 출고 내역과 [출고 등록]을 봅니다.</figcaption></figure>
+  <label class="check"><input type="checkbox" data-step="f2"><span>클로드가 계획 → 수정 → 확인까지 했다</span></label>
+</section>
+
+<section class="pane" data-cat="fix" data-tab="③ 내 눈으로 확인" data-now="클로드의 보고만 믿지 말고, 화면을 직접 열어 봅니다.">
+  <h2>③ 내 눈으로 확인 — 마지막 판단은 사람이</h2>
+  <pre class="cmd">$env:ORDER_DB="data\sample.db"; $env:ORDER_DEMO="1"
+python -X utf8 report.py 개발화면.html
+start 개발화면.html</pre>
+  <div class="tw"><table>
+    <tr><th>볼 것</th><th>기준</th></tr>
+    <tr><td>한 화면</td><td>왼쪽 업무 · 위 탭 · 표. <b>아래로 길게 내려가면 안 됨</b></td></tr>
+    <tr><td>글씨</td><td>본문 15 · 표 14 · 탭 16 이상, 잘리거나 겹치지 않음</td></tr>
+    <tr><td>휴대폰</td><td>브라우저에서 F12 → 휴대폰 모양 단추 → 390 폭에서 옆으로 넘치지 않음</td></tr>
+    <tr><td>숫자</td><td>왼쪽 숫자 · 탭 숫자 · 표 건수가 서로 맞음</td></tr>
+  </table></div>
+  <p class="rt">이상하면 캡처해서 클로드에게 끌어다 놓고 "여기가 이상하다"고 말합니다.</p>
+  <label class="check"><input type="checkbox" data-step="f3"><span>개발화면을 직접 열어 확인했다</span></label>
+</section>
+
+<section class="pane" data-cat="fix" data-tab="④ 깃허브에 올리기" data-now="고친 것을 깃허브에 변경 요청(Pull request)으로 올립니다.">
+  <h2>④ 올리기 — 변경 요청(Pull request)</h2>
+  <p class="lead">가장 쉬운 방법: 클로드에게 말합니다.</p>
+  <pre class="cmd">지금 고친 것을 새 브랜치로 저장하고 깃허브에 Pull request 를 만들어 줘. 제목과 설명은 한국어로, 무엇을 왜 바꿨는지와 확인 결과를 넣어 줘.</pre>
+  <p class="lead">직접 하려면:</p>
+  <pre class="cmd">git checkout -b unchulgo-tab
+git add -A
+git commit -m "발주 접수에 미출고 남음 탭 추가"
+git push -u origin unchulgo-tab
+gh pr create --fill</pre>
+  <div class="note"><b>main에 바로 올리지 않습니다.</b> 브랜치 → Pull request → 대표 승인 순서. <code>.env</code>와 <code>data/</code>는 자동으로 빠집니다(.gitignore).</div>
+  <label class="check"><input type="checkbox" data-step="f4"><span>Pull request 를 만들었다</span></label>
+</section>
+
+<section class="pane" data-cat="fix" data-tab="⑤ 사무실 PC 반영" data-now="대표님 승인 뒤 사무실 PC에 새 판을 받습니다.">
+  <h2>⑤ 승인되면 — 사무실 PC에서 한 번 클릭</h2>
+  <ol class="steps">
+    <li>대표님이 깃허브에서 Pull request 를 확인하고 <b>Merge</b>(합치기)합니다.</li>
+    <li>사무실 PC의 발주 현황 폴더에서 <b><code>업데이트_받기.bat</code></b>를 더블클릭합니다.</li>
+    <li>새 판을 받고 → 모든 파일 문법을 점검하고 → 화면 서버를 새 코드로 다시 켭니다. <b>오류가 있으면 이전 판으로 자동으로 되돌립니다.</b></li>
+    <li>사무실 PC 화면(또는 휴대폰 웹)에서 바뀐 것을 확인합니다.</li>
+  </ol>
+  <div class="note">하루 3번 자동 실행이 깃허브 코드를 <b>저절로</b> 받지는 않습니다. 사무실 PC에는 이카운트 키가 있어서, 사람이 확인한 판만 들어가게 했습니다.</div>
+  <label class="check"><input type="checkbox" data-step="f5"><span>사무실 PC 반영 방법을 알았다</span></label>
+</section>
+
+<!-- ───────── 7. 프로그램 이해 ───────── -->
+<section class="pane" data-cat="program" data-tab="자료가 흐르는 길" data-now="발주가 어디서 들어와 어떻게 화면에 나오는지 봅니다.">
+  <h2>자료가 흐르는 길</h2>
+  <div class="flow">
+    <div><i>들어옴</i><b>카톡 · 메일</b><small>카톡 비서 장부, 네이버 메일 이카운트 발주서</small></div>
+    <div><i>대조</i><b>이카운트</b><small>판매 전표 · 주문서(미판매수량)</small></div>
+    <div><i>계산</i><b>출고 장부</b><small>품목별 발주 − 출고 = 미출고</small></div>
+    <div><i>보여줌</i><b>화면 · 웹</b><small>사무실 PC · 휴대폰</small></div>
+  </div>
+  <div class="tw"><table>
+    <tr><th>상태</th><th>뜻</th></tr>
+    <tr><td>이카운트 입력됨</td><td>판매 전표와 일자·거래처·품목이 맞음 (= 출고됨)</td></tr>
+    <tr><td>이카운트 주문서 입력됨</td><td>주문서로 들어가 있고, 판매(출고)할 때마다 미출고가 줄어듦</td></tr>
+    <tr><td>미입력 · 등록 준비됨</td><td>이카운트에서 아직 못 찾음 → 오늘 할 일</td></tr>
+    <tr><td>노란 바탕 빨간 글씨</td><td>사람이 확인할 것(중복 발주서, 주문서 수량 다름 등)</td></tr>
+  </table></div>
+  <label class="check"><input type="checkbox" data-step="p1"><span>상태 네 가지를 구분할 수 있다</span></label>
+</section>
+
+<section class="pane" data-cat="program" data-tab="화면 업무별" data-now="왼쪽 다섯 업무가 각각 무엇을 보여 주는지 봅니다.">
+  <h2>화면 — 왼쪽 다섯 업무</h2>
+  <div class="tw"><table>
+    <tr><th>업무</th><th>탭</th><th>무엇을</th></tr>
+    <tr><td><b>오늘 할 일</b></td><td>이카운트 입력 · 회계 반영 · 연결 할 일</td><td>지금 처리할 것만</td></tr>
+    <tr><td><b>발주 접수</b></td><td>월별 추이 · 전체 · 카톡 · 네이버 메일 · 발주자별</td><td>기간·발주자 조회, 발주서 원본 보기</td></tr>
+    <tr><td><b>이카운트 대조</b></td><td>입력됨 · 회계 미반영 · 지난 발주 대조 안 됨</td><td>이카운트에 들어갔는지</td></tr>
+    <tr><td><b>거래처 연결</b></td><td>카톡 표기 → 이카운트 거래처</td><td>별칭을 정식 이름으로</td></tr>
+    <tr><td><b>설치·연결</b></td><td>연결 상태 · 실행 기록</td><td>카톡·메일·자동 실행이 살아 있는지</td></tr>
+  </table></div>
+  <figure class="shot"><img src="img/s08_cust.jpg" alt="거래처 연결 화면"><figcaption>거래처 연결 — 카톡·메일에 적힌 이름을 이카운트 정식 거래처로 바꿉니다(예시 자료).</figcaption></figure>
+  <label class="check"><input type="checkbox" data-step="p2"><span>다섯 업무를 눌러 봤다</span></label>
+</section>
+
+<section class="pane" data-cat="program" data-tab="휴대폰 웹" data-now="휴대폰에서 보는 웹 주소와 보기 전용의 뜻을 봅니다.">
+  <h2>휴대폰 웹 — 같은 주소, 보기 전용</h2>
+  <p class="lead"><b>https://drc-order.vercel.app</b> — 실적센터와 같은 아이디로 들어갑니다. 하루 3번 자동으로 새로 고쳐집니다. 버튼(이카운트 등록·출고 등록·발주방 고르기)은 사무실 PC 화면에서만 됩니다.</p>
+  <figure class="shot phone"><img src="img/s10_mobile.jpg" alt="휴대폰 화면"><figcaption>휴대폰 화면 — 표가 한 건씩 세로 칸으로 바뀝니다.</figcaption></figure>
+  <label class="check"><input type="checkbox" data-step="p3"><span>휴대폰으로 열어 봤다</span></label>
+</section>
+
+<!-- ───────── 8. 지켜야 할 것 ───────── -->
+<section class="pane" data-cat="rules" data-tab="절대 금지" data-now="사고를 막는 금지 사항 다섯 가지를 확인합니다.">
+  <h2>절대 금지 다섯 가지</h2>
+  <div class="tw"><table>
+    <tr><th>#</th><th>하지 말 것</th><th>이유</th></tr>
+    <tr><td class="n">1</td><td>이카운트 판매입력·거래처 등록을 <b>시험으로 실행</b></td><td>이카운트 '시험 서버'도 <b>실제 장부</b>에 저장됩니다</td></tr>
+    <tr><td class="n">2</td><td><code>.env</code>·비밀번호·키를 채팅·카톡·깃허브에</td><td>회사 이카운트·메일이 열립니다</td></tr>
+    <tr><td class="n">3</td><td>자동 입력(<code>auto_register</code>) 켜기</td><td>대표 확인 후에만</td></tr>
+    <tr><td class="n">4</td><td>main에 바로 올리기 · 사무실 PC에서 직접 고치기</td><td>검토 없이 실제 운영에 들어갑니다</td></tr>
+    <tr><td class="n">5</td><td>메일 읽기 바꾸기(읽음 표시·삭제·이동)</td><td>발주 메일이 사라질 수 있습니다</td></tr>
+  </table></div>
+  <p class="rt">이 규칙은 <code>CLAUDE.md</code>에 들어 있어 클로드도 지킵니다. 그래도 허락 질문에서 사람이 한 번 더 봅니다.</p>
+  <label class="check"><input type="checkbox" data-step="r1"><span>금지 다섯 가지를 읽었다</span></label>
+</section>
+
+<section class="pane" data-cat="rules" data-tab="화면 기준" data-now="대표님이 정한 화면 기준을 확인합니다(어기면 다시 만듭니다).">
+  <h2>화면 기준 — 대표 지시</h2>
+  <ol class="steps">
+    <li><b>왼쪽 = 업무</b>, <b>위 탭 = 업무 안 구분</b>, 탭 첫 줄 = 지금 할 일.</li>
+    <li><b>한 화면</b>: 아래로 길게 내리는 화면 금지(표 안에서만 스크롤).</li>
+    <li>글씨: 본문 15 · 표 14 · 탭 16 · 보조 13 이상.</li>
+    <li>숫자는 표·그래프로, 문장 나열 금지.</li>
+    <li>확인 표시: <span style="background:#fff3c4;color:#c01f1f;font-weight:700;padding:1px 6px;border-radius:6px">연한 노랑 바탕 + 빨간 글씨</span>.</li>
+    <li>휴대폰 390 폭에서도 옆으로 넘치지 않게.</li>
+  </ol>
+  <label class="check"><input type="checkbox" data-step="r2"><span>화면 기준 여섯 가지를 확인했다</span></label>
+</section>
+
+<!-- ───────── 9. 막혔을 때 ───────── -->
+<section class="pane" data-cat="help" data-tab="자주 나는 오류" data-now="자주 나는 오류와 해결 방법을 봅니다.">
+  <h2>자주 나는 오류</h2>
+  <div class="tw"><table>
+    <tr><th>보이는 말</th><th>원인</th><th>해결</th></tr>
+    <tr><td>명령을 찾을 수 없습니다</td><td>설치 뒤 창을 새로 안 엶</td><td>PowerShell을 닫고 다시 열기, 안 되면 PC 재시작</td></tr>
+    <tr><td>Repository not found</td><td>깃허브 초대 미수락 · 로그인 안 됨</td><td>초대 메일 수락 → <code>gh auth login</code></td></tr>
+    <tr><td>글자가 깨져 보임(?? 또는 이상한 글자)</td><td>한글 설정</td><td>명령에 <code>-X utf8</code>을 붙여 실행</td></tr>
+    <tr><td>ModuleNotFoundError</td><td>파이썬 부품 없음</td><td><code>pip install openpyxl playwright</code></td></tr>
+    <tr><td>push 가 거절됨(rejected)</td><td>main에 직접 올리려 함 · 최신판 아님</td><td>브랜치로 올리기, <code>git pull</code> 뒤 다시</td></tr>
+  </table></div>
+  <p class="rt">무엇이든 막히면: 오류 글을 그대로 복사해 클로드에게 "이 오류 해결해 줘"라고 붙여 넣습니다.</p>
+  <label class="check"><input type="checkbox" data-step="h1"><span>오류가 나면 클로드에게 붙여 넣는다</span></label>
+</section>
+
+<section class="pane" data-cat="help" data-tab="되돌리기" data-now="잘못 고쳤을 때 되돌리는 방법을 봅니다.">
+  <h2>되돌리기 — 깃은 시간 여행 장치</h2>
+  <div class="tw"><table>
+    <tr><th>상황</th><th>클로드에게</th><th>직접</th></tr>
+    <tr><td>저장(commit) 전, 방금 고친 게 이상함</td><td>"방금 바꾼 것 되돌려 줘"</td><td><code>git restore .</code></td></tr>
+    <tr><td>저장한 뒤 이전으로</td><td>"마지막 커밋을 되돌려 줘"</td><td><code>git revert HEAD</code></td></tr>
+    <tr><td>사무실 PC가 이상해짐</td><td colspan="2">대표님께 알림 → 깃허브에서 되돌린 판을 합친 뒤 <code>업데이트_받기.bat</code></td></tr>
+  </table></div>
+  <label class="check"><input type="checkbox" data-step="h2"><span>되돌리는 방법을 알았다</span></label>
+</section>
+
+<section class="pane" data-cat="help" data-tab="근거 · 출처" data-now="이 매뉴얼의 근거와 원본 위치입니다.">
+  <h2>근거 · 출처</h2>
+  <div class="tw"><table>
+    <tr><th>내용</th><th>근거</th></tr>
+    <tr><td>클로드 코드 설치·로그인·명령</td><td><a href="https://docs.claude.com/en/docs/claude-code/quickstart" target="_blank" rel="noopener">Claude Code 공식 시작 안내</a></td></tr>
+    <tr><td>회사 AI 키트</td><td><a href="https://github.com/drc2104/drc-ai-starter" target="_blank" rel="noopener">drc2104/drc-ai-starter</a></td></tr>
+    <tr><td>프로그램 원본·규칙</td><td>비공개 저장소 drc2104/order-hub — README.md · CLAUDE.md</td></tr>
+    <tr><td>화면 기준·금지 사항</td><td>대표 지시(2026-10-19 화면 기준, 2026-11-06 발주 현황)</td></tr>
+  </table></div>
+  <p class="rt">화면 캡처는 모두 가짜 자료(예시 거래처)입니다. 작성: 2026-11-06(금) · 디알컴퍼니 2본부 클로드</p>
+</section>
+
+      </div>
+      <aside class="right" aria-label="내 진행">
+        <div class="rsec"><h4>내 진행</h4><div class="bar"><span id="allBar"></span></div>
+          <div class="rt"><b id="allNum" style="color:var(--ink)">0</b> / <span id="allTotal">0</span> 단계 완료</div></div>
+        <div class="rsec"><div class="catbars" id="catBars"></div></div>
+        <div class="rsec"><h4>매번 하는 순서</h4><ol class="steps" style="margin:0;font-size:14px"><li><code>git pull</code></li><li><code>claude</code> → 4칸으로 시키기</li><li>개발화면.html 직접 확인</li><li>"PR 만들어 줘"</li><li>승인 뒤 사무실 PC <code>업데이트_받기.bat</code></li></ol></div>
+        <div class="rsec"><h4>지시문 4칸 (복사)</h4><pre class="cmd" style="margin:0">[목적]
+[재료]
+[결과물]
+[확인]
+바로 고치지 말고 계획부터 보여 줘.</pre></div>
+      </aside>
+    </div>
+  </main>
+</div>
+<div class="zoomv" id="zoomv"><img alt=""></div>
+<script>
+(function(){
+  var CATS=[['start','시작하기'],['install','설치'],['account','계정 연결'],['get','프로그램 받기'],['claude','클로드 코드 쓰는 법'],['fix','고치는 순서(실습)'],['program','프로그램 이해'],['rules','지켜야 할 것'],['help','막혔을 때']];
+  var panes=[].slice.call(document.querySelectorAll('.pane'));
+  var store={get:function(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+  var done=store.get('orderhub_manual_done')||{};
+  var pos=store.get('orderhub_manual_pos')||{cat:'start',i:0};
+  document.querySelectorAll('pre.cmd').forEach(function(pre){
+    pre.dataset.copy=pre.textContent;
+    var b=document.createElement('button');b.type='button';b.textContent='복사';
+    b.addEventListener('click',function(){
+      var t=pre.dataset.copy||'';
+      var ok=function(){b.textContent='복사됨';setTimeout(function(){b.textContent='복사'},1500)};
+      try{navigator.clipboard.writeText(t.trim()).then(ok,function(){sel(pre)})}catch(e){sel(pre)}
+    });
+    pre.appendChild(b);
+  });
+  function sel(el){var r=document.createRange();r.selectNodeContents(el);var s=getSelection();s.removeAllRanges();s.addRange(r)}
+  function byCat(c){return panes.filter(function(p){return p.dataset.cat===c})}
+  var catsEl=document.getElementById('cats'),tabsEl=document.getElementById('tabs');
+  CATS.forEach(function(c){
+    var li=document.createElement('li'),b=document.createElement('button');b.type='button';b.dataset.cat=c[0];
+    b.innerHTML='<span>'+c[1]+'</span><small></small>';b.addEventListener('click',function(){show(c[0],0)});li.appendChild(b);catsEl.appendChild(li);
+  });
+  function steps(c){var a=[];(c?byCat(c):panes).forEach(function(p){p.querySelectorAll('input[data-step]').forEach(function(i){a.push(i.dataset.step)})});return a}
+  function progress(){
+    var all=steps(),n=all.filter(function(s){return done[s]}).length;
+    document.getElementById('allNum').textContent=n;document.getElementById('allTotal').textContent=all.length;
+    document.getElementById('allBar').style.width=(all.length?n/all.length*100:0)+'%';
+    var html='';
+    CATS.forEach(function(c){var s=steps(c[0]),k=s.filter(function(x){return done[x]}).length;
+      var sm=catsEl.querySelector('[data-cat="'+c[0]+'"] small');if(sm)sm.textContent=s.length?k+'/'+s.length:'';
+      if(!s.length)return;
+      html+='<div><span>'+c[1]+'</span><span class="mini"><span style="width:'+(k/s.length*100)+'%"></span></span><em>'+k+'/'+s.length+'</em></div>';});
+    document.getElementById('catBars').innerHTML=html;
+  }
+  document.querySelectorAll('input[data-step]').forEach(function(i){
+    i.checked=!!done[i.dataset.step];
+    i.addEventListener('change',function(){done[i.dataset.step]=i.checked;store.set('orderhub_manual_done',done);progress()});
+  });
+  function show(cat,i){
+    var list=byCat(cat);if(!list.length){cat='start';list=byCat(cat)}
+    if(i<0||i>=list.length)i=0;
+    panes.forEach(function(p){p.hidden=true});list[i].hidden=false;var vv=document.getElementById('vid');if(vv&&list[i].dataset.tab!=='교육 영상'){try{vv.pause()}catch(e){}}
+    catsEl.querySelectorAll('button').forEach(function(b){b.setAttribute('aria-current',b.dataset.cat===cat?'true':'false')});
+    tabsEl.innerHTML='';
+    list.forEach(function(p,k){var b=document.createElement('button');b.type='button';b.setAttribute('role','tab');
+      b.setAttribute('aria-selected',k===i?'true':'false');b.textContent=p.dataset.tab;b.addEventListener('click',function(){show(cat,k)});tabsEl.appendChild(b)});
+    var ci=CATS.findIndex(function(c){return c[0]===cat});
+    var w=document.createElement('span');w.className='where';w.textContent=CATS[ci][1]+' '+(i+1)+'/'+list.length;tabsEl.appendChild(w);
+    document.getElementById('nowText').innerHTML='<b>지금 할 일</b> · '+list[i].dataset.now;
+    var nb=document.getElementById('nextBtn');
+    if(i<list.length-1){nb.textContent='다음: '+list[i+1].dataset.tab;nb.onclick=function(){show(cat,i+1)}}
+    else if(ci<CATS.length-1){nb.textContent='다음: '+CATS[ci+1][1];nb.onclick=function(){show(CATS[ci+1][0],0)}}
+    else{nb.textContent='처음으로';nb.onclick=function(){show('start',0)}}
+    document.getElementById('content').scrollTop=0;
+    store.set('orderhub_manual_pos',{cat:cat,i:i});
+  }
+  document.querySelectorAll('.seek').forEach(function(b){b.addEventListener('click',function(){var v=document.getElementById('vid');if(!v)return;v.currentTime=+b.dataset.t;v.play().catch(function(){})})});
+  progress();show(pos.cat,pos.i);
+})();
+
+document.querySelectorAll('figure.shot img').forEach(function(i){{i.addEventListener('click',function(){{var z=document.getElementById('zoomv');z.querySelector('img').src=i.src;z.classList.add('on')}})}});
+document.getElementById('zoomv').addEventListener('click',function(){{this.classList.remove('on')}});
+</script>
+
